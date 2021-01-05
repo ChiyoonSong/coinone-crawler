@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cone.blockchain.crawler.biz.mapper.TransactionMapper">
+
+    <select id="selectAccountInfo"
+            parameterType="hashmap"
+            resultType="cone.blockchain.crawler.models.common.AccountInfo">
+        /*getAccountInfo*/
+        select seq
+             , symbol
+             , address
+             , tag
+             , memo
+             , start_block as startBlock
+             , end_block as endBlock
+             , page
+             , transfer_page as transferPage
+             , complete
+          from coinone_neo_account
+         where complete = 'N'
+           limit 5
+
+    </select>
+
+    <select id="selectTransactionInfoOne"
+            parameterType="hashmap"
+            resultType="hashmap">
+        /*getTransactionInfoOne*/
+        select symbol
+             , target_address   as addr
+             , nonce
+             , from_address     as 'from'
+             , to_address       as 'to'
+             , sequence         as 'sequence'
+             , hash
+             , contract
+             , block
+             , amount
+             , fee
+             , is_valid         as 'isValid'
+             , id_deposit       as 'isDeposit'
+             , type             as 'type'
+             , unit
+             , block_time       as 'created_at'
+          from coinone_${tableSymbol}_tx
+         where 1=1
+        <if test="address != null and address != ''">
+           and target_address = #{address}
+           order by seq desc limit 1
+        </if>
+
+    </select>
+
+    <insert id="insertBlockTransaction" parameterType="cone.blockchain.crawler.models.common.CsvModel">
+        /*putBlockTransaction*/
+        INSERT INTO coinone_${tableSymbol}_tx
+        (
+            symbol, target_address, nonce, from_address, to_address, tag, sequence, hash, contract, block,
+            amount, fee, is_valid, id_deposit, block_time, type, unit
+        ) VALUES
+        (
+            #{symbol},
+            #{addr},
+            #{nonce},
+            #{from},
+            #{to},
+            #{tag},
+            #{sequence},
+            #{hash},
+            #{contract},
+            #{block},
+            #{amount},
+            #{fee},
+            #{isValid},
+            #{isDeposit},
+            #{created_at},
+            #{type},
+            #{unit}
+        ) ON DUPLICATE KEY UPDATE modified_date = now()
+
+    </insert>
+
+    <update id="updateAccountStatus" parameterType="hashmap">
+        /*putAccountStatus*/
+        update coinone_${tableSymbol}_account
+        set modified_date = now()
+        <if test="complete != null and complete != ''">
+            , complete = #{complete}
+        </if>
+        <if test="page != null and page != ''">
+            , page = #{page}
+        </if>
+        <if test="transfer_page != null and transfer_page != ''">
+            , transfer_page = #{transfer_page}
+        </if>
+        <if test="memo != null and memo != ''">
+            , memo = #{memo}
+        </if>
+        where address = #{address}
+    </update>
+
+</mapper>

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="debug">
+    <Properties>
+        <Property name="LOG_FORMAT">%d{HH:mm:ss.SSS} [%thread][%method:%line] %-5level %logger{36} - %msg %n</Property>
+        <Property name="BASE_DIR">logs</Property>
+        <Property name="fileName">${sys:logFilename}</Property>
+    </Properties>
+
+    <Appenders>
+        <Console name="LogToConsole" target="SYSTEM_OUT" follow="true">
+            <PatternLayout pattern="${LOG_FORMAT}"/>
+        </Console>
+
+        <RollingFile name="LogToFile"
+                     fileName="${BASE_DIR}/coinone-crawling-client.log"
+                     filePattern="${BASE_DIR}/coinone-crawling-client.%d{yyyy-MM-dd}_%i.log.gz">
+            <PatternLayout pattern="${LOG_FORMAT}"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="10 MB"/>
+                <TimeBasedTriggeringPolicy/>
+            </Policies>
+            <DefaultRolloverStrategy max="100">
+                <Delete basePath="${BASE_DIR}">
+                    <IfFileName glob="*.log" />
+                    <IfLastModified age="15d" />
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingFile>
+        <RollingFile name="ERROR_FILE"
+                     fileName="${BASE_DIR}/coinone-crawling-client-error-log.log"
+                     filePattern="${BASE_DIR}/coinone-crawling-client-error-log.%d{yyyy-MM-dd}_%i.log">
+            <PatternLayout pattern="${LOG_FORMAT}" />
+            <Policies>
+                <SizeBasedTriggeringPolicy size="100 MB" />
+                <TimeBasedTriggeringPolicy />
+            </Policies>
+            <DefaultRolloverStrategy>
+                <Delete basePath="${BASE_DIR}">
+                    <IfFileName glob="*.log" />
+                    <IfLastModified age="15d" />
+                </Delete>
+            </DefaultRolloverStrategy>
+            <ThresholdFilter level="ERROR" onMatch="ACCEPT" onMisMatch="DENY" />
+        </RollingFile>
+    </Appenders>
+
+    
+    <Loggers>
+        <Logger name="org.springframework.boot" level="error" additivity="false">
+            <AppenderRef ref="LogToConsole"/>
+        </Logger>
+        <!-- avoid duplicated logs with additivity=false -->
+        <logger name="com.crawling" level="debug" additivity="false">
+            <AppenderRef ref="LogToConsole"/>
+            <AppenderRef ref="LogToFile"/>
+        </logger>
+        <Root level="info">
+            <AppenderRef ref="LogToConsole"/>
+            <AppenderRef ref="LogToFile"/>
+        </Root>
+
+        <!--		- jdbc.sqltiming : SQL문과 해당 SQL을 실행시키는데 수행된 시간 정보(milliseconds)를 포함한다.-->
+        <!--		<logger name="jdbc.sqltiming" level="info"/>-->
+        <logger name="jdbc.sqltiming" level="off"/>
+        <!--		- jdbc.audit : ResultSet을 제외한 모든 JDBC 호출 정보를 로그로 남긴다.-->
+        <logger name="jdbc.audit" level="off"/>
+        <!--		- jdbc.resultset : ResultSet을 포함한 모든 JDBC 호출 정보를 로그로 남긴다.-->
+        <logger name="jdbc.resultset" level="off"/>
+        <!--		- jdbc.resultsettable : SQL 결과 조회된 데이터의 table을 로그로 남긴다.-->
+        <logger name="jdbc.resultsettable" level="off"/>
+        <logger name="jdbc.connection" level="off"/>
+        <!--		- jdbc.sqlonly : SQL문만을 로그로 남기며, PreparedStatement일 경우 관련된 argument 값으로 대체된 SQL문이 보여진다.-->
+        <logger name="jdbc.sqlonly" level="INFO" additivity="true">
+            <appender-ref ref="ERROR_FILE"/>
+            <appender-ref ref="FILE"/>
+            <appender-ref ref="STDOUT" />
+        </logger>
+    </Loggers>
+</Configuration>

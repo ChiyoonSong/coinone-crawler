@@ -1,0 +1,45 @@
+#SERVER CONFIGURATION
+server:
+  port: ${PORT:50000}
+
+spring:
+  write:
+    datasource:
+      type: com.zaxxer.hikari.HikariDataSource
+      url: jdbc:log4jdbc:mysql://127.0.0.1:3306/workspace?serverTimezone=Asia/Seoul
+      username: root
+      password: cldbs151!@AB
+      driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+      continue-on-error: true
+      initialize: false
+      #DBCP HIKARI CONFIGURATION
+      #      hikari:
+      connection-timeout: 15000
+      validation-timeout: 10000
+      idle-timeout: 600000
+      max-lifetime: 3600000
+      maximum-pool-size: 30
+      minimum-idle: 10
+      connection-test-query: SELECT 1
+      auto-commit: false
+
+  read:
+    datasource:
+      type: com.zaxxer.hikari.HikariDataSource
+      read-only: true
+      url: jdbc:log4jdbc:mysql://127.0.0.1:3306/workspace?serverTimezone=Asia/Seoul
+      username: root
+      password: cldbs151!@AB
+      driver-class-name: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+      continue-on-error: true
+      initialize: false
+      #DBCP HIKARI CONFIGURATION
+      #      hikari:
+      connection-timeout: 15000
+      validation-timeout: 10000
+      idle-timeout: 600000
+      max-lifetime: 3600000
+      maximum-pool-size: 50
+      minimum-idle: 10
+      connection-test-query: SELECT 1
+      auto-commit: false
