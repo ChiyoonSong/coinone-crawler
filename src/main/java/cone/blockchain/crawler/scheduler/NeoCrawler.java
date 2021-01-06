@@ -35,4 +35,25 @@ public class NeoCrawler {
 
         }
     }
+    /**
+     *
+     * select asset_symbol   as symbol,
+     *        target_address as addr,
+     *        nonce,
+     *        from_address   as 'from',
+     *        to_address     as 'to',
+     *        tag,
+     *        sequence,
+     *        hash,
+     *        contract,
+     *        block,
+     *        amount,
+     *        fee,
+     *        is_valid,
+     *        id_deposit,
+     *        block_time     as 'created_at'
+     * from coinone_neo_tx
+     * where block_time > '2019-12-31'
+     * order by block_time;
+     */
 }
