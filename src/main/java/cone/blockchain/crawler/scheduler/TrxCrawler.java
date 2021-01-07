@@ -22,7 +22,7 @@ public class TrxCrawler {
 
     private final TrxScan trxScan;
 
-    @Scheduled(fixedDelay = 10000)
+    @Scheduled(fixedDelay = 1500)
     public void NeoCrawler() {
         logger.info("Trx crawler job execute..");
 

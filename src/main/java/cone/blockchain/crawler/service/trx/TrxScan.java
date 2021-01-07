@@ -33,6 +33,11 @@ public class TrxScan {
 
     private final CommonService commonService;
 
+    /**
+     * https://developers.tron.network/reference#account-info-by-address
+     * Get transaction info by account address
+     * @param accountInfo
+     */
     @Transactional(propagation = Propagation.REQUIRED)
     public void getTransactions(AccountInfo accountInfo) {
 
