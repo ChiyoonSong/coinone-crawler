@@ -1,4 +1,4 @@
-package cone.blockchain.crawler.service.neo;
+package cone.blockchain.crawler.service;
 
 import org.apache.logging.log4j.util.Strings;
 import org.springframework.stereotype.Service;
