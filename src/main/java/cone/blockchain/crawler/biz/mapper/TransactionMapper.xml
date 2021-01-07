@@ -16,7 +16,7 @@
              , page
              , transfer_page as transferPage
              , complete
-          from coinone_neo_account
+          from coinone_${symbol}_account
          where complete = 'N'
            limit 5
 
