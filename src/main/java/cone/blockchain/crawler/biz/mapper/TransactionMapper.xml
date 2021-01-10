@@ -41,7 +41,8 @@
              , id_deposit       as 'isDeposit'
              , type             as 'type'
              , unit
-             , block_time       as 'created_at'
+--              , block_time       as 'created_at'
+             , date_format(block_time, '%Y-%m-%d %H:%i:%s') as 'created_at'
           from coinone_${tableSymbol}_tx
          where 1=1
         <if test="address != null and address != ''">
@@ -93,8 +94,14 @@
         <if test="transfer_page != null and transfer_page != ''">
             , transfer_page = #{transfer_page}
         </if>
-        <if test="memo != null and memo != ''">
+        <if test="memo != null">
             , memo = #{memo}
+        </if>
+        <if test="tag != null">
+            , tag = #{tag}
+        </if>
+        <if test="end_block != null and end_block != ''">
+            , end_block = #{end_block}
         </if>
         where address = #{address}
     </update>

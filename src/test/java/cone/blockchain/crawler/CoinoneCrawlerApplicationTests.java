@@ -5,26 +5,28 @@ import cone.blockchain.crawler.biz.service.TransactionService;
 import cone.blockchain.crawler.lib.tronprotocol.common.utils.Base58;
 import cone.blockchain.crawler.lib.tronprotocol.common.utils.Sha256Hash;
 import cone.blockchain.crawler.models.common.AccountInfo;
-import cone.blockchain.crawler.models.common.CsvModel;
 import cone.blockchain.crawler.service.CommonService;
 import cone.blockchain.crawler.service.trx.TrxScan;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
-import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 
 @SpringBootTest
 class CoinoneCrawlerApplicationTests {
-
+    private static final Logger logger = LogManager.getLogger(CoinoneCrawlerApplicationTests.class);
     @Autowired
     private WebClient customWebClinet;
     @Autowired
@@ -41,123 +43,55 @@ class CoinoneCrawlerApplicationTests {
     @Test
     @Transactional
     public void webClinet() throws Exception {
-        String address = "TA1WRiBiqtmtnimWQq2bkJHkse1L34YbAH";
-        customWebClinet.mutate() /* 기존 설정값 상속하여 사용 */
-//                .baseUrl("https://api.trongrid.io/v1/accounts/" + address + "/transactions?min_timestamp=1546095600000").build()
-                .baseUrl("https://api.trongrid.io:443/v1/accounts/TDoyjmPJHzRFmYfCRLRsPhKjLETwd9fKr9/transactions?min_timestamp=1546095600000&fingerprint=9mPzvhwvPW19bGPv1ETB4mjUWw7qZe9zUayLnVUUrmNCfSrHdBnGQoV14tdgGQNXZmLLTvZixyrEQbF5LWxrA2yP7fdxhssKK").build()
+
+        HashMap<String, String> accountMap = new HashMap<>();
+        accountMap.put("symbol", "trx");
+        accountMap.put("complete", "N");
+        List<AccountInfo> accountList = transactionService.getAccountInfo(accountMap);
+        AccountInfo accountInfo = accountList.get(0);
+
+        Mono<String> result = customWebClinet.mutate()
+//                .baseUrl("https://api.trongrid.io/v1/accounts/" + accountInfo.getAddress() + "/transactions?min_timestamp=1577664000000&max_timestamp=1605877752000").build()
+//                .baseUrl("https://api.trongrid.io:443/v1/accounts/TDoyjmPJHzRFmYfCRLRsPhKjLETwd9fKr9/transactions?max_timestamp=1605877752000&min_timestamp=1577664000000&fingerprint=DziomHhU9FH9N2sNmrJLtNxZyS7XWBRDJqfy7rxPQmRoYBQx5UGt792Qjn8F5akgunfx1b2R7BMfJrwhkLc1Pt5CeCigAPpAoc3Fb").build()
+                .baseUrl("https://api.trongrid.io/v1/accounts/" +
+                        accountInfo.getAddress() +
+                        "/transactions" +
+                        "?min_timestamp=" + accountInfo.getStartBlock() +
+                        "&max_timestamp=" + accountInfo.getEndBlock()).build()
                 .get()
                 .accept(MediaType.APPLICATION_JSON)
-                .retrieve()
-                .onStatus(status -> status.is4xxClientError() || status.is5xxServerError()
-                        , clientResponse ->
-                                clientResponse.bodyToMono(String.class)
-                                        .map(body -> new RuntimeException(body)))
-                .bodyToMono(String.class)
-                .subscribe(response -> {
-
+                .exchangeToMono(clientResponse -> {
+                   return clientResponse.bodyToMono(String.class);
+                });
+                result.subscribe(response -> {
                     ObjectMapper objectMapper = new ObjectMapper();
                     Map<String, Object> convertDataMap = new HashMap<>();
                     try {
                         convertDataMap = objectMapper.readValue(response, Map.class);
                     } catch (Exception e) {
                         e.printStackTrace();
+                        throw new IllegalArgumentException("trx response conver error");
                     }
-
-                    AccountInfo accountInfo = new AccountInfo();
-                    accountInfo.setAddress(address);
 
                     HashMap<String, String> accountInfoMap = new HashMap<>();
                     accountInfoMap.put("tableSymbol", "trx");
                     accountInfoMap.put("address", accountInfo.getAddress());
 
-                    ArrayList<LinkedHashMap<String, Object>> dataList = ((ArrayList<LinkedHashMap<String, Object>>) convertDataMap.get("data"));
-                    if (dataList.isEmpty()) {
-                        accountInfoMap.put("complete", "Y");
-                        transactionService.putAccountStatus(accountInfoMap);
-                    } else {
-                        for (LinkedHashMap<String, Object> dataMap : dataList) {
-                            // 트랜잭션이 이미 수집이 된 경우,
-                            /*if (null != lastTxInfo && lastTxInfo.get("hash").equals(dataMap.get("txID").toString())) {
-                                accountInfoMap.put("complete", "Y");
-                                transactionService.putAccountStatus(accountInfoMap);
+                    if ("Exceeds the maximum limit, please change your query time range".equals(convertDataMap.get("error"))) {
+                        HashMap<String, String> lastTx = transactionService.getTransactionInfoOne(accountInfoMap);
+                        String lastBlockDate = lastTx.get("created_at");
+                        Long blockTime = commonService.getUnixTimeStampFromDate(lastBlockDate);
 
-                                return;
-                            }*/
+                        accountInfoMap.put("end_block", blockTime.toString());
+                        accountInfoMap.put("memo", "");
+                        accountInfoMap.put("tag", "");
 
-                            LinkedHashMap<String, Object> rawData = ((LinkedHashMap<String, Object>) dataMap.get("raw_data"));
-                            for (Object contract : ((ArrayList) rawData.get("contract"))) {
-                                CsvModel csvModel = new CsvModel();
-                                csvModel.setTableSymbol("trx");
-
-                                ArrayList retList = (ArrayList) dataMap.get("ret");
-                                // 수수료 정보가 1개 이상인 경우.. 확인!!
-                                if (retList.size() > 1) {
-                                    throw new IllegalArgumentException("ret fee data size over : " + dataMap.get("txID").toString());
-                                } else {
-                                    LinkedHashMap<String, Object> retMap = (LinkedHashMap<String, Object>) retList.get(0);
-                                    if ("SUCCESS".equals(retMap.get("contractRet").toString())) {
-                                        csvModel.setIsValid(1);
-                                    } else {
-                                        csvModel.setIsValid(0);
-                                    }
-                                    csvModel.setFee(new BigDecimal(retMap.get("fee").toString()).multiply(BigDecimal.valueOf(Math.pow(10, 18))));
-                                }
-
-                                csvModel.setBlock(Long.valueOf(dataMap.get("blockNumber").toString()));
-                                csvModel.setHash(dataMap.get("txID").toString());
-
-                                String date = commonService.getEpochTimeToDate(Long.valueOf(dataMap.get("block_timestamp").toString()) / 1000);
-                                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                                csvModel.setCreated_at(LocalDateTime.parse(date, formatter));
-
-                                String type = ((LinkedHashMap<String, Object>) contract).get("type").toString();
-                                csvModel.setType(type);
-
-                                LinkedHashMap<String, Object> param = (LinkedHashMap<String, Object>) ((LinkedHashMap<String, Object>) contract).get("parameter");
-                                LinkedHashMap<String, Object> value = (LinkedHashMap<String, Object>) param.get("value");
-
-                                String symbol = "TRX";
-                                if (null != value.get("asset_name")) {
-                                    symbol = value.get("asset_name").toString();
-                                }
-                                csvModel.setSymbol(symbol);
-                                csvModel.setAddr(accountInfo.getAddress());
-
-                                csvModel.setFrom(trxScan.hexStringTobBase58(value.get("owner_address").toString()));
-                                if (null != value.get("contract_address")) {
-                                    csvModel.setContract(trxScan.hexStringTobBase58(value.get("contract_address").toString()));
-                                }
-                                if (null != value.get("data")) {
-                                    HashMap<String, String> inputData = new HashMap<>();
-                                    trxScan.getTrxtokenInfo(inputData, value.get("data").toString());
-
-                                    csvModel.setAmount(new BigDecimal(commonService.getHexaToDecimal(inputData.get("amount"))));
-                                    csvModel.setTo(trxScan.hexStringTobBase58(inputData.get("address")));
-                                } else {
-                                    BigDecimal amount = new BigDecimal(value.get("amount").toString());
-                                    csvModel.setAmount(amount.multiply(BigDecimal.valueOf(Math.pow(10, 18))));
-                                    csvModel.setTo(trxScan.hexStringTobBase58(value.get("to_address").toString()));
-                                }
-
-                                if (accountInfo.getAddress().equals(csvModel.getFrom())) {
-                                    csvModel.setIsDeposit(0);
-                                } else {
-                                    csvModel.setIsDeposit(1);
-                                }
-                                transactionService.putBlockTransaction(csvModel);
-                            }
-                        }
-                        LinkedHashMap<String, Object> links = (LinkedHashMap<String, Object>) ((LinkedHashMap<String, Object>) convertDataMap.get("meta")).get("links");
-                        if (null != links) {
-                            accountInfoMap.put("memo", links.get("next").toString());
-                        } else {
-                            accountInfoMap.put("complete", "Y");
-                        }
                         transactionService.putAccountStatus(accountInfoMap);
 
                     }
                 });
-        Thread.sleep(5000);
+
+        Thread.sleep(10000);
     }
 
     /**
@@ -174,7 +108,8 @@ class CoinoneCrawlerApplicationTests {
      */
     @Test
     public void getTrcTokenInfo() {
-        String data = "a9059cbb00000000000000000000000059037e73927ad5ba52b27c8c21947b3186ed70950000000000000000000000000000000000000000000002d9ebe14384a9d2d000";
+//        String data = "a9059cbb00000000000000000000000059037e73927ad5ba52b27c8c21947b3186ed70950000000000000000000000000000000000000000000002d9ebe14384a9d2d000";
+        String data = "23b872dd0000000000000000000000002a21b0018f7e74bea56efc04eb907911d55ed0680000000000000000000000007f65532897c052a0af0c3de41ac77f9c7a6fee310000000000000000000000000000000000000000000000000e2da2a751e26400";
 
         HashMap<String, String> inputData = new HashMap<>();
         ;
@@ -187,8 +122,31 @@ class CoinoneCrawlerApplicationTests {
     }
 
     @Test
+    public void getTrxtokenInfoTest() {
+        /**
+         * input data string
+         * a9059cbb00000000000000000000000059037e73927ad5ba52b27c8c21947b3186ed70950000000000000000000000000000000000000000000002d9ebe14384a9d2d000
+         */
+        HashMap<String, String> inputData = new HashMap<>();
+        String inputDataStr = "23b872dd0000000000000000000000002a21b0018f7e74bea56efc04eb907911d55ed0680000000000000000000000007f65532897c052a0af0c3de41ac77f9c7a6fee310000000000000000000000000000000000000000000000000e2da2a751e26400";
+        if (inputDataStr.startsWith("a9059cbb")) {
+            inputData.put("method", inputDataStr.substring(0, 8));
+            inputData.put("address", "41" + inputDataStr.substring(32, 72));
+            inputData.put("amount", "0x" + inputDataStr.substring(72, 136));
+        } else if (inputDataStr.startsWith("23b872dd")) {
+            inputData.put("from_address", "41" + inputDataStr.substring(32, 72)); // from
+            inputData.put("to_address", "41" + inputDataStr.substring(96, 136)); // to
+            inputData.put("amount", "0x" + inputDataStr.substring(136));
+        }
+
+        System.out.println("amount : " + commonService.getHexaToDecimal(inputData.get("amount")));
+        System.out.println("fromAddess : " + trxScan.hexStringTobBase58(inputData.get("from_address")));
+        System.out.println("toAddess : " + trxScan.hexStringTobBase58(inputData.get("to_address")));
+    }
+
+    @Test
     public void unixSecondsToDate() {
-        long unixSeconds = 1609819876L;
+        long unixSeconds = 1605877752L;
         // convert seconds to milliseconds
         Date date = new java.util.Date(unixSeconds * 1000L);
         // the format of your date
@@ -204,10 +162,12 @@ class CoinoneCrawlerApplicationTests {
 //		Date date = new Date();
 //		System.out.print(date.getTime());
 
-        SimpleDateFormat dateFormat = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss");
-        String dateString = "2019-12-31 00:00:00";
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        dateFormat.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+        String dateString = "2020-10-22 14:09:21"; // 1609977600000
         Date date = dateFormat.parse(dateString);
         System.out.print(date.getTime());
+
     }
 
 

@@ -4,6 +4,7 @@ import org.apache.logging.log4j.util.Strings;
 import org.springframework.stereotype.Service;
 
 import java.math.BigInteger;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -54,5 +55,18 @@ public class CommonService {
         String formattedDate = sdf.format(date);
 
         return formattedDate;
+    }
+
+    public Long getUnixTimeStampFromDate(String date) {
+        try {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            dateFormat.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+            Date convertDate = dateFormat.parse(date);
+
+            return convertDate.getTime();
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return 0L;
     }
 }
