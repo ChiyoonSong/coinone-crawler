@@ -40,6 +40,8 @@ public class TrxScan {
     /**
      * https://developers.tron.network/reference#account-info-by-address
      * Get transaction info by account address
+     * 2019-12-01 00:00:00 UTC (1575158400000)
+     *
      * 2019-12-30 00:00:00 UTC (1577664000000)
      *  ~  2021-01-07 00:00:00 UTC (1609977600000)
      *
@@ -63,8 +65,9 @@ public class TrxScan {
                 .exchangeToMono(clientResponse -> {
                     return clientResponse.bodyToMono(String.class);
                 });
-        result.subscribe(response -> {
 
+        logger.info("baseUrl : {}", baseUrl);
+        result.subscribe(response -> {
             ObjectMapper objectMapper = new ObjectMapper();
             Map<String, Object> convertDataMap;
             try {
@@ -134,7 +137,7 @@ public class TrxScan {
                         (lastTxInfo.get("hash").equals(String.valueOf(dataMap.get("txID")))
                                 || lastTxInfo.get("hash").equals(String.valueOf(dataMap.get("tx_id"))))) {
                     logger.warn("complete set : duplicate tx existence : {}", accountInfo.getAddress());
-                    logger.warn("[{}]", rawData.toString());
+                    logger.warn("[{}]", dataMap.toString());
                    /* accountInfoMap.put("complete", "Y");
                     transactionService.putAccountStatus(accountInfoMap);
 
@@ -156,7 +159,7 @@ public class TrxScan {
                             throw new IllegalArgumentException("ret fee data size over : " + dataMap.get("txID").toString());
                         } else {
                             LinkedHashMap<String, Object> retMap = (LinkedHashMap<String, Object>) retList.get(0);
-                            if ("SUCCESS".equals(retMap.get("contractRet").toString())) {
+                            if (null == retMap.get("contractRet") || "SUCCESS".equals(retMap.get("contractRet").toString())) {
                                 csvModel.setIsValid(1);
                             } else {
                                 csvModel.setIsValid(0);
@@ -209,13 +212,16 @@ public class TrxScan {
                     }
                 }
                 if (null != internalData) {
-                    // block 데이터가 없음..
+
                     CsvModel csvModel = new CsvModel();
+                    csvModel.setTableSymbol("trx");
                     csvModel.setSymbol("TRX");
                     csvModel.setAddr(accountInfo.getAddress());
                     csvModel.setHash(dataMap.get("tx_id").toString());
                     csvModel.setFrom(hexStringTobBase58(dataMap.get("from_address").toString()));
                     csvModel.setTo(hexStringTobBase58(dataMap.get("to_address").toString()));
+                    // block 데이터가 없음..
+                    csvModel.setBlock(0L);
 
                     String date = commonService.getEpochTimeToDate(Long.valueOf(dataMap.get("block_timestamp").toString()) / 1000);
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");

@@ -45,4 +45,25 @@ public class TrxCrawler {
      * sun : TKkeiboTkxXKJpbmVFbv4a8ov5rAfRDMf9
      * jst : TCFLL5dx5ZJdKnWuesXxi1VPwjLVmWZZy9
      */
+
+    /**
+     * select asset_symbol as symbol
+     *      , target_address as 'addr'
+     *      , nonce
+     *      , from_address   as 'from'
+     *      , to_address     as 'to'
+     *      , tag
+     *      , sequence
+     *      , hash
+     *      , contract
+     *      , block
+     *      , amount
+     *      , fee
+     *      , is_valid
+     *      , id_deposit     as 'is_deposit'
+     *      , block_time     as 'created_at'
+     * from coinone_trx_tx a
+     * where block_time between '2019-12-01' and '2021-01-04' and block != 0
+     * order by block_time;
+     */
 }
